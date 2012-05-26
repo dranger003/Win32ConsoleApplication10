@@ -10,7 +10,10 @@
 
 extern HMODULE g_hModule;
 
-#define IDM_CUSTOM1         0x0010
+#define IDM_LEFTHALF                0x0010
+#define IDM_RIGHTHALF               0x0011
+#define IDM_BOTTOMTHIRD             0x0012
+#define IDM_REMEMBER                0x0013
 
 enum HOOKID
 {
@@ -110,10 +113,19 @@ void WritePipe(LPCTSTR psz)
     DWORD dwMode = PIPE_READMODE_MESSAGE;
     ::SetNamedPipeHandleState(hPipe, &dwMode, NULL, NULL);
 
+    CString szProcessName;
+    ::GetProcessImageFileName(::GetCurrentProcess(), CStrBuf(szProcessName, 65535), 65535);
+
+    CString szModuleName;
+    ::GetModuleFileName(NULL, CStrBuf(szModuleName, 65535), 65535);
+
+    CString sz;
+    sz.Format(_T("[%s][%s]: %s"), szProcessName, szModuleName, psz);
+
     TCHAR szBuf[512];
     DWORD dwBytes = 0;
 
-    ::_stprintf_s(szBuf, psz);
+    ::_stprintf_s(szBuf, sz);
     ::WriteFile(hPipe, szBuf, sizeof(szBuf), &dwBytes, NULL);
 
     ::FlushFileBuffers(hPipe);
@@ -146,17 +158,6 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam)
     if (nCode == HSHELL_WINDOWCREATED
         || nCode == HSHELL_WINDOWDESTROYED)
     {
-        CString szProcessName;
-        if (::GetProcessImageFileName(::GetCurrentProcess(), CStrBuf(szProcessName, 65535), 65535) > 0)
-        {
-            CString szModuleName;
-            ::GetModuleFileName(NULL, CStrBuf(szModuleName, 65535), 65535);
-
-            CString sz;
-            sz.Format(_T("[%s]\n[%s]"), szProcessName, szModuleName);
-            ::WritePipe(sz);
-        }
-
         if (nCode == HSHELL_WINDOWCREATED)
         {
             HWND hWnd = (HWND)wParam;
@@ -167,11 +168,11 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam)
             RECT rc = { 0 };
             ATLASSERT(::GetWindowRect(hWnd, &rc));
 
-            {
-                CString sz;
-                sz.Format(_T("ShellProc(), nCode = HSHELL_WINDOWCREATED, sz = [%s], left:%ld, top:%ld, right:%ld, bottom:%ld"), (LPCTSTR)szWindowText, rc.left, rc.top, rc.right, rc.bottom);
-                ::WritePipe(sz);
-            }
+            //{
+            //    CString sz;
+            //    sz.Format(_T("ShellProc(), nCode = HSHELL_WINDOWCREATED, sz = [%s], left:%ld, top:%ld, right:%ld, bottom:%ld"), (LPCTSTR)szWindowText, rc.left, rc.top, rc.right, rc.bottom);
+            //    ::WritePipe(sz);
+            //}
 
             HMONITOR hMonitor = ::MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
             ATLASSERT(hMonitor != NULL);
@@ -192,7 +193,14 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam)
             //mii.wID = 100;
             //::InsertMenuItem(hMenu, 0, TRUE, &mii);
 
-            ::InsertMenu(hMenu, 0, MF_BYPOSITION | MF_STRING, IDM_CUSTOM1, _T("&Lock Position & Size"));
+            HMENU hSubMenu = ::CreatePopupMenu();
+
+            ::InsertMenu(hSubMenu, 0, MF_BYPOSITION | MF_STRING, IDM_LEFTHALF, _T("&Left Half"));
+            ::InsertMenu(hSubMenu, 1, MF_BYPOSITION | MF_STRING, IDM_RIGHTHALF, _T("&Right Half"));
+            ::InsertMenu(hSubMenu, 2, MF_BYPOSITION | MF_STRING, IDM_BOTTOMTHIRD, _T("&Bottom Third"));
+            ::InsertMenu(hSubMenu, 3, MF_BYPOSITION | MF_STRING, IDM_REMEMBER, _T("Re&member"));
+
+            ::InsertMenu(hMenu, 0, MF_BYPOSITION | MF_POPUP, (UINT_PTR)hSubMenu, _T("Position to"));
             ::InsertMenu(hMenu, 1, MF_BYPOSITION | MF_SEPARATOR, NULL, NULL);
 
             //{
@@ -203,69 +211,81 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam)
 
             if (!::_tcscmp(szWindowText, _T("Run")))
             {
+                // Bottom left
                 ::SetWindowPos(
                     hWnd,
                     HWND_TOP,
-                    mi.rcWork.right - (rc.right - rc.left),
+                    0,
                     mi.rcWork.bottom - (rc.bottom - rc.top),
-                    rc.right - rc.left, rc.bottom - rc.top,
-                    0);
-            }
-            else if (!::_tcscmp(szWindowText, _T("Computer")))
-            {
-                ::SetWindowPos(
-                    hWnd,
-                    HWND_TOP,
-                    mi.rcWork.right - 1800,
-                    0,
-                    1800,
-                    mi.rcWork.bottom,
-                    0);
-            }
-            else if (!::_tcscmp(szWindowText, _T("C:\\Windows\\system32\\cmd.exe")))
-            {
-                ::SetWindowPos(
-                    hWnd,
-                    HWND_TOP,
-                    0,
-                    0,
-                    mi.rcWork.right,
-                    mi.rcWork.bottom,
+                    rc.right - rc.left,
+                    rc.bottom - rc.top,
                     0);
 
-                //ATLASSERT(::GetWindowRect(hWnd, &rc));
+                // Bottom right
+                //::SetWindowPos(
+                //    hWnd,
+                //    HWND_TOP,
+                //    mi.rcWork.right - (rc.right - rc.left),
+                //    mi.rcWork.bottom - (rc.bottom - rc.top),
+                //    rc.right - rc.left,
+                //    rc.bottom - rc.top,
+                //    0);
+            }
+            //else if (!::_tcscmp(szWindowText, _T("Computer")))
+            //{
+            //    ::SetWindowPos(
+            //        hWnd,
+            //        HWND_TOP,
+            //        mi.rcWork.right - 1800,
+            //        0,
+            //        1800,
+            //        mi.rcWork.bottom,
+            //        0);
+            //}
+            //else if (!::_tcscmp(szWindowText, _T("C:\\Windows\\system32\\cmd.exe")))
+            //{
+            //    ::SetWindowPos(
+            //        hWnd,
+            //        HWND_TOP,
+            //        0,
+            //        0,
+            //        mi.rcWork.right,
+            //        mi.rcWork.bottom,
+            //        0);
 
-                //{
-                //    CString sz;
-                //    sz.Format(_T("left:%ld, top:%ld, right:%ld, bottom:%ld"), rc.left, rc.top, rc.right, rc.bottom);
-                //    ::WritePipe(sz);
-                //}
-            }
-            else if(!::_tcscmp(szWindowText, _T("Windows Internet Explorer")))
-            {
-                ::SetWindowPos(
-                    hWnd,
-                    HWND_TOP,
-                    mi.rcWork.right - 1800,
-                    0,
-                    mi.rcWork.right - (mi.rcWork.right - 1800),
-                    mi.rcWork.bottom,
-                    0);
-            }
+            //    //ATLASSERT(::GetWindowRect(hWnd, &rc));
+
+            //    //{
+            //    //    CString sz;
+            //    //    sz.Format(_T("left:%ld, top:%ld, right:%ld, bottom:%ld"), rc.left, rc.top, rc.right, rc.bottom);
+            //    //    ::WritePipe(sz);
+            //    //}
+            //}
+            //else if(!::_tcscmp(szWindowText, _T("Windows Internet Explorer")))
+            //{
+            //    ::SetWindowPos(
+            //        hWnd,
+            //        HWND_TOP,
+            //        mi.rcWork.right - 1800,
+            //        0,
+            //        mi.rcWork.right - (mi.rcWork.right - 1800),
+            //        mi.rcWork.bottom,
+            //        0);
+            //}
         }
-        else if (nCode == HSHELL_WINDOWDESTROYED)
-        {
-            HWND hWnd = (HWND)wParam;
+        //else if (nCode == HSHELL_WINDOWDESTROYED)
+        //{
+        //    HWND hWnd = (HWND)wParam;
 
-            CString szWindowText;
-            ::GetWindowText(hWnd, CStrBuf(szWindowText, 256), 256);
+        //    CString szWindowText;
+        //    ::GetWindowText(hWnd, CStrBuf(szWindowText, 256), 256);
 
-            {
-                CString sz;
-                sz.Format(_T("ShellProc(), nCode = HSHELL_WINDOWDESTROYED, sz = [%s]"), (LPCTSTR)szWindowText);
-                ::WritePipe(sz);
-            }
-        }
+        //    {
+        //        CString sz;
+        //        sz.Format(_T("ShellProc(), nCode = HSHELL_WINDOWDESTROYED, sz = [%s]"), (LPCTSTR)szWindowText);
+        //        ::WritePipe(sz);
+        //    }
+        //}
     }
 
     return ::CallNextHookEx(g_hHook[CBT], nCode, wParam, lParam);
@@ -279,13 +299,77 @@ LRESULT CALLBACK GetMsgProc(int nCode, WPARAM wParam, LPARAM lParam)
     if (wParam == PM_REMOVE)
     {
         PMSG pMsg = (PMSG)lParam;
-        if (pMsg->message == WM_SYSCOMMAND && LOWORD(pMsg->wParam) == IDM_CUSTOM1)
+
+        if (pMsg->message == WM_SYSCOMMAND || pMsg->message == 0x80F0)
         {
+            HMONITOR hMonitor = ::MonitorFromWindow(pMsg->hwnd, MONITOR_DEFAULTTONEAREST);
+            ATLASSERT(hMonitor != NULL);
+
+            MONITORINFO mi = { 0 };
+            mi.cbSize = sizeof(MONITORINFO);
+            ATLASSERT(::GetMonitorInfo(hMonitor, &mi));
+
+            switch (LOWORD(pMsg->wParam))
             {
-                CString sz;
-                sz.Format(_T("GetMsgProc(), IDM_CUSTOM1"));
-                ::WritePipe(sz);
+                case IDM_LEFTHALF:
+                    {
+                        //CString sz;
+                        //sz.Format(_T("GetMsgProc(), IDM_LEFTHALF"));
+                        //::WritePipe(sz);
+
+                        ::SetWindowPos(
+                            pMsg->hwnd,
+                            HWND_TOP,
+                            0,
+                            0,
+                            mi.rcWork.right / 2,
+                            mi.rcWork.bottom,
+                            0);
+                    }
+                    break;
+                case IDM_RIGHTHALF:
+                    {
+                        //CString sz;
+                        //sz.Format(_T("GetMsgProc(), IDM_RIGHTHALF"));
+                        //::WritePipe(sz);
+
+                        ::SetWindowPos(
+                            pMsg->hwnd,
+                            HWND_TOP,
+                            mi.rcWork.right / 2,
+                            0,
+                            mi.rcWork.right - (mi.rcWork.right - (mi.rcWork.right / 2)),
+                            mi.rcWork.bottom,
+                            0);
+                    }
+                    break;
+                case IDM_BOTTOMTHIRD:
+                    {
+                        //CString sz;
+                        //sz.Format(_T("GetMsgProc(), IDM_BOTTOMTHIRD"));
+                        //::WritePipe(sz);
+
+                        ::SetWindowPos(
+                            pMsg->hwnd,
+                            HWND_TOP,
+                            0,
+                            mi.rcWork.bottom - (mi.rcWork.bottom / 3),
+                            mi.rcWork.right,
+                            mi.rcWork.bottom - (mi.rcWork.bottom - ((mi.rcWork.bottom / 3))),
+                            0);
+                    }
+                    break;
+                case IDM_REMEMBER:
+                    {
+                        //CString sz;
+                        //sz.Format(_T("GetMsgProc(), IDM_REMEMBER"));
+                        //::WritePipe(sz);
+                    }
+                    break;
+                default:
+                    break;
             }
+
         }
     }
 

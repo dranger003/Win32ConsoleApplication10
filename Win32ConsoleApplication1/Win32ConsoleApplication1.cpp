@@ -240,7 +240,7 @@ int _tmain(int argc, _TCHAR* argv[])
         //::CloseThreadpool(ptpp);
     }
 
-    //::_getch();
+    ::_getch();
 
     return 0;
 }
