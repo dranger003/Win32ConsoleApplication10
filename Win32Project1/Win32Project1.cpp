@@ -184,15 +184,6 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam)
             HMENU hMenu = ::GetSystemMenu(hWnd, FALSE);
             ATLASSERT(hMenu != NULL);
 
-            //MENUITEMINFO mii = { 0 };
-            //mii.cbSize = sizeof(MENUITEMINFO);
-            //mii.fMask = MIIM_STRING;
-            //mii.dwTypeData = _T("TEST");
-            //mii.cch = 4;
-            //mii.fType = MFT_STRING;
-            //mii.wID = 100;
-            //::InsertMenuItem(hMenu, 0, TRUE, &mii);
-
             HMENU hSubMenu = ::CreatePopupMenu();
 
             ::InsertMenu(hSubMenu, 0, MF_BYPOSITION | MF_STRING, IDM_LEFTHALF, _T("&Left Half"));
@@ -202,12 +193,6 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam)
 
             ::InsertMenu(hMenu, 0, MF_BYPOSITION | MF_POPUP, (UINT_PTR)hSubMenu, _T("Position to"));
             ::InsertMenu(hMenu, 1, MF_BYPOSITION | MF_SEPARATOR, NULL, NULL);
-
-            //{
-            //    CString sz;
-            //    sz.Format(_T("%ld, x:%ld, y:%ld, x:%ld, y:%ld"), ::GetLastError(), mi.rcWork.left, mi.rcWork.top, mi.rcWork.right, mi.rcWork.bottom);
-            //    ::WritePipe(sz);
-            //}
 
             if (!::_tcscmp(szWindowText, _T("Run")))
             {
